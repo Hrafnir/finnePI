@@ -1,1 +1,412 @@
+<!-- Version: #1 -->
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Utledning av PI med Polygoner</title>
+    <style>
+        /* Version: #1 */
+        :root {
+            --primary-color: #3498db;
+            --secondary-color: #e74c3c;
+            --background-color: #f4f4f9;
+            --text-color: #333;
+            --panel-bg: #ffffff;
+        }
 
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 2rem;
+        }
+
+        p.subtitle {
+            font-size: 1.1rem;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .main-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: center;
+            max-width: 1200px;
+            width: 100%;
+        }
+
+        .canvas-container {
+            background: var(--panel-bg);
+            padding: 10px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        canvas {
+            border: 1px solid #ddd;
+            border-radius: 50%; /* Gjør selve canvas-borderen rund for estetikk, men vi tegner inni */
+            background-color: #fff;
+            cursor: crosshair;
+        }
+
+        .controls-container {
+            flex: 1;
+            min-width: 300px;
+            background: var(--panel-bg);
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        label {
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        input[type=range] {
+            width: 100%;
+            cursor: pointer;
+        }
+
+        .input-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        input[type=number] {
+            width: 80px;
+            padding: 5px;
+            font-size: 1rem;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        .stats-panel {
+            background-color: #f8f9fa;
+            border-left: 5px solid var(--secondary-color);
+            padding: 15px;
+            border-radius: 4px;
+        }
+
+        .math-display {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 1.1rem;
+            margin: 10px 0;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 4px;
+        }
+        
+        .stat-row:last-child {
+            border-bottom: none;
+        }
+
+        .highlight {
+            color: var(--secondary-color);
+            font-weight: bold;
+        }
+
+        .explanation {
+            font-size: 0.9rem;
+            line-height: 1.5;
+            color: #555;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Utledning av PI (&pi;)</h1>
+        <p class="subtitle">Arkimes' metode: Polygons approksimasjon</p>
+    </header>
+
+    <div class="main-container">
+        <!-- Visualisering -->
+        <div class="canvas-container">
+            <canvas id="geometryCanvas" width="500" height="500"></canvas>
+        </div>
+
+        <!-- Kontroller og Statistikk -->
+        <div class="controls-container">
+            
+            <div class="control-group">
+                <label for="sidesSlider">
+                    Antall sider (n):
+                    <span id="sidesValueDisplay">3</span>
+                </label>
+                <div class="input-row">
+                    <span>3</span>
+                    <input type="range" id="sidesSlider" min="3" max="1000" value="3" step="1">
+                    <span>1000</span>
+                </div>
+                <div class="input-row" style="justify-content: flex-end;">
+                    <label for="sidesInput" style="font-weight: normal; margin-right: 5px;">Manuell input:</label>
+                    <input type="number" id="sidesInput" min="3" max="1000" value="3">
+                </div>
+            </div>
+
+            <div class="stats-panel">
+                <h3>Beregninger</h3>
+                
+                <div class="stat-row">
+                    <span>Formel:</span>
+                    <span class="math-display">n &times; sin(180&deg;/n)</span>
+                </div>
+
+                <div class="stat-row">
+                    <span>Approksimert &pi;:</span>
+                    <span id="approxPi" class="math-display highlight">--</span>
+                </div>
+
+                <div class="stat-row">
+                    <span>Faktisk &pi;:</span>
+                    <span class="math-display">3.14159265...</span>
+                </div>
+
+                <div class="stat-row">
+                    <span>Avvik:</span>
+                    <span id="errorPercent">--</span>
+                </div>
+            </div>
+
+            <div class="explanation">
+                <strong>Hvordan virker dette?</strong><br>
+                Vi plasserer en regulær mangekant (polygon) inne i en sirkel med diameter 1.
+                Omkretsen til sirkelen er nøyaktig &pi;. 
+                Mangekantens omkrets er summen av alle sidene. 
+                Når antall sider ($n$) øker, vil mangekanten ligne mer og mer på sirkelen, og omkretsen vil nærme seg &pi;.
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /* Version: #1 */
+        
+        // === KONFIGURASJON ===
+        const CONFIG = {
+            canvasId: 'geometryCanvas',
+            sliderId: 'sidesSlider',
+            inputId: 'sidesInput',
+            valueDisplayId: 'sidesValueDisplay',
+            approxDisplayId: 'approxPi',
+            errorDisplayId: 'errorPercent',
+            circleColor: '#bdc3c7',
+            polygonColor: '#e74c3c',
+            vertexColor: '#c0392b',
+            circleRadiusPct: 0.45, // Radius som prosent av canvas bredde/2
+            lineWidth: 2
+        };
+
+        // === GLOBAL STATE ===
+        const state = {
+            sides: 3,
+            canvas: null,
+            ctx: null,
+            width: 0,
+            height: 0,
+            centerX: 0,
+            centerY: 0,
+            radius: 0
+        };
+
+        // === INITIALISERING ===
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log("App starter... Initierer DOM elementer.");
+            
+            // Hent elementer
+            state.canvas = document.getElementById(CONFIG.canvasId);
+            state.ctx = state.canvas.getContext('2d');
+            
+            const slider = document.getElementById(CONFIG.sliderId);
+            const input = document.getElementById(CONFIG.inputId);
+
+            // Sett opp canvas dimensjoner
+            updateCanvasDimensions();
+
+            // Event Listeners
+            slider.addEventListener('input', (e) => handleInputChange(e.target.value));
+            input.addEventListener('change', (e) => handleInputChange(e.target.value));
+            input.addEventListener('input', (e) => {
+                // Oppdaterer kun hvis verdien er gyldig mens man skriver
+                if(e.target.value >= 3 && e.target.value <= 1000) {
+                   handleInputChange(e.target.value); 
+                }
+            });
+
+            // Kjør første tegning
+            handleInputChange(3);
+        });
+
+        // === HJELPEFUNKSJONER ===
+
+        function updateCanvasDimensions() {
+            state.width = state.canvas.width;
+            state.height = state.canvas.height;
+            state.centerX = state.width / 2;
+            state.centerY = state.height / 2;
+            // Radius er litt mindre enn halvparten av bredden for padding
+            state.radius = Math.min(state.width, state.height) * CONFIG.circleRadiusPct;
+            
+            console.log(`Canvas dimensjoner oppdatert: ${state.width}x${state.height}, Radius: ${state.radius}`);
+        }
+
+        function handleInputChange(val) {
+            let n = parseInt(val);
+            
+            // Validering
+            if (isNaN(n) || n < 3) n = 3;
+            if (n > 1000) n = 1000;
+
+            // Oppdater state
+            state.sides = n;
+
+            // Oppdater UI inputs (sync slider og tekstboks)
+            document.getElementById(CONFIG.sliderId).value = n;
+            document.getElementById(CONFIG.inputId).value = n;
+            document.getElementById(CONFIG.valueDisplayId).textContent = n;
+
+            // Utfør beregninger og tegning
+            calculatePiApproximation();
+            drawScene();
+        }
+
+        // === MATEMATIKK LOGIKK ===
+        function calculatePiApproximation() {
+            const n = state.sides;
+            
+            // Matematisk utledning:
+            // Vi antar en sirkel med radius r = 0.5 (Diameter = 1).
+            // En regulær n-kant består av n likebente trekanter.
+            // Vinkelen i sentrum for hver trekant er 360/n grader (eller 2*PI/n radianer).
+            // Vi deler trekanten i to rettvinklede trekanter for å finne sidelengden (s).
+            // sin(vinkel/2) = (s/2) / r
+            // s = 2 * r * sin(PI / n)
+            // Omkrets = n * s = n * 2 * r * sin(PI / n)
+            // Hvis Diameter (2r) = 1, så er Omkrets = n * sin(PI / n).
+            // Siden PI = Omkrets / Diameter, nærmer dette seg PI.
+            
+            // JS bruker radianer i Math.sin.
+            // Math.PI brukes her KUN for å konvertere grader til radianer for sin-funksjonen,
+            // eller som input til sin-funksjonen.
+            // Pedagogisk poeng: Vi beregner lengden av korden.
+            
+            const calculatedPi = n * Math.sin(Math.PI / n);
+            const actualPi = Math.PI;
+            const error = Math.abs(actualPi - calculatedPi);
+            const errorPercent = (error / actualPi) * 100;
+
+            // Logging for debugging/analyse
+            console.log(`--- Beregning for n=${n} ---`);
+            console.log(`Vinkel (grader): ${360/n}`);
+            console.log(`Beregnet PI: ${calculatedPi.toFixed(8)}`);
+            console.log(`Faktisk PI : ${actualPi.toFixed(8)}`);
+            console.log(`Avvik      : ${error.toFixed(8)} (${errorPercent.toFixed(6)}%)`);
+
+            // Oppdater UI
+            document.getElementById(CONFIG.approxDisplayId).textContent = calculatedPi.toFixed(8);
+            document.getElementById(CONFIG.errorDisplayId).textContent = errorPercent.toFixed(5) + " %";
+        }
+
+        // === TEGNE LOGIKK ===
+        function drawScene() {
+            const ctx = state.ctx;
+            const n = state.sides;
+            const r = state.radius;
+            const cx = state.centerX;
+            const cy = state.centerY;
+
+            // 1. Tøm canvas
+            ctx.clearRect(0, 0, state.width, state.height);
+
+            // 2. Tegn Sirkel (Referanse)
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, 0, 2 * Math.PI);
+            ctx.strokeStyle = CONFIG.circleColor;
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            // 3. Tegn Polygon
+            ctx.beginPath();
+            
+            // Vi starter på -PI/2 (kl 12) for at polygonet skal stå "rett"
+            const startAngle = -Math.PI / 2;
+            
+            for (let i = 0; i <= n; i++) {
+                // Vinkel for dette hjørnet
+                const theta = startAngle + (i * 2 * Math.PI / n);
+                
+                const x = cx + r * Math.cos(theta);
+                const y = cy + r * Math.sin(theta);
+
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            }
+
+            ctx.strokeStyle = CONFIG.polygonColor;
+            ctx.lineWidth = CONFIG.lineWidth;
+            ctx.lineJoin = 'round';
+            ctx.stroke();
+            
+            // Fyll polygonet svakt
+            ctx.fillStyle = CONFIG.polygonColor + "10"; // Hex alpha ~6%
+            ctx.fill();
+
+            // 4. Tegn hjørner (punkter) hvis n ikke er for stor (blir rotete over 50)
+            if (n <= 50) {
+                for (let i = 0; i < n; i++) {
+                    const theta = startAngle + (i * 2 * Math.PI / n);
+                    const x = cx + r * Math.cos(theta);
+                    const y = cy + r * Math.sin(theta);
+                    
+                    ctx.beginPath();
+                    ctx.arc(x, y, 3, 0, 2 * Math.PI);
+                    ctx.fillStyle = CONFIG.vertexColor;
+                    ctx.fill();
+                }
+            }
+        }
+
+    </script>
+</body>
+</html>
+<!-- Version: #1 -->
